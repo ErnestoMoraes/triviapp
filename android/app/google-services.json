@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "429653620161",
+    "project_id": "triviapp-1a9d5",
+    "storage_bucket": "triviapp-1a9d5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:429653620161:android:41cec2bc792fdc6ccd2b40",
+        "android_client_info": {
+          "package_name": "com.example.estudo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAiur4SCPwZf1GUCZ_I_dZdszUXxMT_Df8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
