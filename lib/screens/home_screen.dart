@@ -1,15 +1,15 @@
-import 'package:estudo/banner.dart';
-import 'package:estudo/trivia.dart';
+import 'package:estudo/screens/trivia_screen.dart';
+import 'package:estudo/widgets/banner.dart';
 import 'package:flutter/material.dart';
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -47,7 +47,7 @@ class _HomePageState extends State<HomePage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => TriviaApp(isTimer: true),
+                        builder: (context) => const TriviaScreen(isTimer: true),
                       ),
                     );
                   },
@@ -65,7 +65,8 @@ class _HomePageState extends State<HomePage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => TriviaApp(isTimer: false)),
+                          builder: (context) =>
+                              const TriviaScreen(isTimer: false)),
                     );
                   },
                   style: ElevatedButton.styleFrom(

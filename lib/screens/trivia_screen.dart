@@ -1,65 +1,48 @@
-import 'package:estudo/banner.dart';
-import 'package:estudo/home.dart';
+import 'dart:developer';
+
+import 'package:estudo/models/trivia_question.dart';
+import 'package:estudo/screens/home_screen.dart';
+import 'package:estudo/utils/snackbar.dart';
+import 'package:estudo/widgets/banner.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:flip_card/flip_card.dart';
 import 'dart:async';
 
-class TriviaQuestion {
-  final String question;
-  final String correctAnswer;
-  final List<String> options;
+class TriviaScreen extends StatefulWidget {
+  final bool isTimer;
 
-  TriviaQuestion({
-    required this.question,
-    required this.correctAnswer,
-    required this.options,
-  });
-
-  factory TriviaQuestion.fromJson(Map<String, dynamic> json) {
-    List<String> options = [...json['incorrectAnswers'], json['correctAnswer']];
-    options.shuffle();
-    return TriviaQuestion(
-      question: json['question']['text'],
-      correctAnswer: json['correctAnswer'],
-      options: options,
-    );
-  }
-}
-
-class TriviaApp extends StatefulWidget {
-  final bool isTimer; // Adiciona o parâmetro isTimer
-
-  TriviaApp({required this.isTimer});
+  const TriviaScreen({super.key, required this.isTimer});
 
   @override
-  _TriviaAppState createState() => _TriviaAppState();
+  TriviaScreenState createState() => TriviaScreenState();
 }
 
-class _TriviaAppState extends State<TriviaApp> with TickerProviderStateMixin {
+class TriviaScreenState extends State<TriviaScreen>
+    with TickerProviderStateMixin {
+  int _currentQuestionIndex = 0;
+
   List<TriviaQuestion> questions = [];
   int score = 0;
-  int correctAnswers = 0;
   final PageController _pageController = PageController();
   List<GlobalKey<FlipCardState>> _flipCardKeys = [];
-  int currentQuestionIndex = 0;
   late AnimationController _animationController;
-  int _secondsLeft = 10; // 10 seconds per question
-  late DateTime _startTime; // Store start time of the game
+  int _secondsLeft = 10;
+  late DateTime _startTime;
 
   @override
   void initState() {
     super.initState();
+
     fetchQuestions();
 
-    // Set up the animation controller
     _animationController = AnimationController(
       vsync: this,
-      duration: Duration(seconds: 10),
+      duration: const Duration(seconds: 10),
     )..addListener(() {
         setState(() {
           if (_animationController.isCompleted) {
-            moveToNextQuestion(); // Automatically move to the next question when timer reaches 0
+            moveToNextQuestion();
           }
         });
       });
@@ -76,54 +59,45 @@ class _TriviaAppState extends State<TriviaApp> with TickerProviderStateMixin {
 
         _flipCardKeys =
             List.generate(questions.length, (_) => GlobalKey<FlipCardState>());
-        _startTime = DateTime.now(); // Set the start time when the game begins
+
+        _startTime = DateTime.now();
+
         if (widget.isTimer) {
-          startTimer(); // Start the timer only if isTimer is true
+          startTimer();
         }
       });
     } catch (e) {
-      print("Erro ao buscar perguntas: $e");
+      log("Erro ao buscar perguntas: $e");
     }
   }
 
   void startTimer() {
-    _secondsLeft = 10; // Reset to 10 seconds for each question
+    _secondsLeft = 10;
     _animationController.reset();
     _animationController.forward();
   }
 
-  void showFeedbackMessage(bool isCorrect, String correctAnswer) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          isCorrect ? "Correto!" : "Errado! Resposta correta: $correctAnswer",
-          style: TextStyle(color: Colors.white),
-        ),
-        backgroundColor: isCorrect ? Colors.green : Colors.red,
-      ),
-    );
-  }
-
-  void checkAnswer(String selected, String correct) async {
+  void checkAnswer(
+    String selected,
+    String correct,
+    BuildContext context,
+  ) async {
     bool isCorrect = selected == correct;
-    showFeedbackMessage(isCorrect, correct);
+
+    showFeedbackMessage(isCorrect, correct, context);
 
     if (isCorrect) {
       setState(() {
         score++;
-        correctAnswers++;
       });
     }
 
-    // Stop the timer immediately when the answer is selected
     if (widget.isTimer) {
       _animationController.stop();
     }
 
-    // Wait for the Snackbar to finish before moving to the next question
-    await Future.delayed(Duration(seconds: 1));
+    await Future.delayed(const Duration(seconds: 1));
 
-    // Move to the next question and restart the timer
     moveToNextQuestion();
   }
 
@@ -131,22 +105,26 @@ class _TriviaAppState extends State<TriviaApp> with TickerProviderStateMixin {
     if (_pageController.page?.round() == questions.length - 1) {
       showGameOverDialog();
     } else {
+      setState(() {
+        _currentQuestionIndex++;
+      });
       _pageController.nextPage(
-          duration: Duration(milliseconds: 500), curve: Curves.easeInOut);
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
       if (widget.isTimer) {
-        startTimer(); // Restart timer for the next question
+        startTimer();
       }
     }
   }
 
   void showGameOverDialog() {
-    // Calcular o tempo total gasto em segundos se houver o timer
     final totalTime =
         widget.isTimer ? DateTime.now().difference(_startTime).inSeconds : 0;
 
     showDialog(
       context: context,
-      barrierDismissible: false, // Impede fechar ao clicar fora
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text(
           "Fim do Jogo",
@@ -154,19 +132,24 @@ class _TriviaAppState extends State<TriviaApp> with TickerProviderStateMixin {
         ),
         content: Text(
           widget.isTimer
-              ? "Sua pontuação: $score/${questions.length}\nAcertos: $correctAnswers\nTempo total: $totalTime segundos"
-              : "Sua pontuação: $score/${questions.length}\nAcertos: $correctAnswers",
-          style: TextStyle(fontSize: 18),
+              ? "Sua pontuação: $score/${questions.length}\nTempo total: $totalTime segundos"
+              : "Sua pontuação: $score/${questions.length}",
+          style: const TextStyle(fontSize: 18),
         ),
         actions: [
           TextButton(
             onPressed: restartGame,
-            child:
-                Text("Jogar novamente", style: TextStyle(color: Colors.blue)),
+            child: const Text(
+              "Jogar novamente",
+              style: TextStyle(color: Colors.blue),
+            ),
           ),
           TextButton(
             onPressed: exitGame,
-            child: Text("Sair", style: TextStyle(color: Colors.blue)),
+            child: const Text(
+              "Sair",
+              style: TextStyle(color: Colors.blue),
+            ),
           ),
         ],
       ),
@@ -176,8 +159,8 @@ class _TriviaAppState extends State<TriviaApp> with TickerProviderStateMixin {
   void exitGame() {
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => HomePage()),
-      (Route<dynamic> route) => false, // Remove todas as páginas anteriores
+      MaterialPageRoute(builder: (context) => const HomeScreen()),
+      (Route<dynamic> route) => false,
     );
   }
 
@@ -185,20 +168,17 @@ class _TriviaAppState extends State<TriviaApp> with TickerProviderStateMixin {
     Navigator.of(context).pop();
     setState(() {
       score = 0;
-      correctAnswers = 0;
-      currentQuestionIndex = 0;
     });
     _pageController.jumpToPage(0);
-    _startTime =
-        DateTime.now(); // Restart the start time when restarting the game
+    _startTime = DateTime.now();
     if (widget.isTimer) {
-      startTimer(); // Restart timer when restarting the game
+      startTimer();
     }
   }
 
   @override
   void dispose() {
-    _animationController.dispose(); // Dispose the animation controller
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -212,11 +192,25 @@ class _TriviaAppState extends State<TriviaApp> with TickerProviderStateMixin {
         elevation: 0,
       ),
       body: questions.isEmpty
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                AdMobBannerWidget(),
-                widget.isTimer ? SizedBox(height: 20) : SizedBox.shrink(),
+                const AdMobBannerWidget(),
+                Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Text(
+                    'Pergunta ${_currentQuestionIndex + 1}/10',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                widget.isTimer
+                    ? const SizedBox(height: 20)
+                    : const SizedBox.shrink(),
                 if (widget.isTimer)
                   Padding(
                     padding: const EdgeInsets.all(10.0),
@@ -226,13 +220,14 @@ class _TriviaAppState extends State<TriviaApp> with TickerProviderStateMixin {
                         CircularProgressIndicator(
                           value: _animationController.value,
                           backgroundColor: Colors.white,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.black54),
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            Colors.black54,
+                          ),
                           strokeWidth: 6,
                         ),
                         Text(
                           '${_secondsLeft - (_animationController.value * 10).toInt()}',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -244,7 +239,7 @@ class _TriviaAppState extends State<TriviaApp> with TickerProviderStateMixin {
                 Expanded(
                   child: PageView.builder(
                     controller: _pageController,
-                    physics: NeverScrollableScrollPhysics(),
+                    physics: const NeverScrollableScrollPhysics(),
                     itemCount: questions.length,
                     itemBuilder: (context, index) {
                       return Center(
@@ -266,12 +261,12 @@ class _TriviaAppState extends State<TriviaApp> with TickerProviderStateMixin {
 
   Widget buildPagination() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.only(bottom: 60),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           IconButton(
-            icon: Icon(Icons.flip, color: Colors.white),
+            icon: const Icon(Icons.flip, color: Colors.white),
             onPressed: () {
               int currentIndex = _pageController.page?.round() ?? 0;
               if (_flipCardKeys[currentIndex].currentState?.isFront ?? false) {
@@ -282,10 +277,8 @@ class _TriviaAppState extends State<TriviaApp> with TickerProviderStateMixin {
             },
           ),
           IconButton(
-            icon: Icon(Icons.arrow_forward, color: Colors.white),
-            onPressed: () {
-              moveToNextQuestion();
-            },
+            icon: const Icon(Icons.arrow_forward, color: Colors.white),
+            onPressed: moveToNextQuestion,
           ),
         ],
       ),
@@ -301,12 +294,15 @@ class _TriviaAppState extends State<TriviaApp> with TickerProviderStateMixin {
         width: 320,
         height: 220,
         alignment: Alignment.center,
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Text(
           questionData.question,
           textAlign: TextAlign.center,
-          style: TextStyle(
-              fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
       ),
     );
@@ -327,10 +323,15 @@ class _TriviaAppState extends State<TriviaApp> with TickerProviderStateMixin {
                     color: Colors.blueAccent.withOpacity(0.1),
                   ),
                   child: ListTile(
-                    title: Text(option,
-                        style: TextStyle(fontSize: 18, color: Colors.black)),
-                    onTap: () =>
-                        checkAnswer(option, questionData.correctAnswer),
+                    title: Text(
+                      option,
+                      style: const TextStyle(fontSize: 18, color: Colors.black),
+                    ),
+                    onTap: () => checkAnswer(
+                      option,
+                      questionData.correctAnswer,
+                      context,
+                    ),
                   ),
                 ))
             .toList(),

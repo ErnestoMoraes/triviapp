@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -5,10 +7,10 @@ class AdMobBannerWidget extends StatefulWidget {
   const AdMobBannerWidget({super.key});
 
   @override
-  _AdMobBannerWidgetState createState() => _AdMobBannerWidgetState();
+  AdMobBannerWidgetState createState() => AdMobBannerWidgetState();
 }
 
-class _AdMobBannerWidgetState extends State<AdMobBannerWidget> {
+class AdMobBannerWidgetState extends State<AdMobBannerWidget> {
   BannerAd? _bannerAd;
   bool _isAdLoaded = false;
 
@@ -20,18 +22,19 @@ class _AdMobBannerWidgetState extends State<AdMobBannerWidget> {
 
   void _loadAd() {
     _bannerAd = BannerAd(
-      adUnitId: 'ca-app-pub-3940256099942544/9214589741',
+      adUnitId: 'ca-app-pub-3940256099942544/9214589741', //ID de teste da Admob
       size: AdSize.banner,
-      request: AdRequest(),
+      request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (Ad ad) {
           setState(() {
             _isAdLoaded = true;
           });
+          log('Ad carregado!');
         },
         onAdFailedToLoad: (Ad ad, LoadAdError error) {
           ad.dispose();
-          print('Falha ao carregar o banner: $error');
+          log('Falha ao carregar o banner: $error');
         },
       ),
     );
@@ -41,12 +44,12 @@ class _AdMobBannerWidgetState extends State<AdMobBannerWidget> {
   @override
   Widget build(BuildContext context) {
     return _isAdLoaded
-        ? Container(
-            width: MediaQuery.of(context).size.width, // Largura total da tela
+        ? SizedBox(
+            width: MediaQuery.of(context).size.width,
             height: _bannerAd!.size.height.toDouble(),
             child: AdWidget(ad: _bannerAd!),
           )
-        : SizedBox.shrink();
+        : const SizedBox.shrink();
   }
 
   @override
