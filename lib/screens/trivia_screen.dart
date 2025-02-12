@@ -21,7 +21,6 @@ class TriviaScreen extends StatefulWidget {
 class TriviaScreenState extends State<TriviaScreen>
     with TickerProviderStateMixin {
   int _currentQuestionIndex = 0;
-
   List<TriviaQuestion> questions = [];
   int score = 0;
   final PageController _pageController = PageController();
@@ -269,11 +268,7 @@ class TriviaScreenState extends State<TriviaScreen>
             icon: const Icon(Icons.flip, color: Colors.white),
             onPressed: () {
               int currentIndex = _pageController.page?.round() ?? 0;
-              if (_flipCardKeys[currentIndex].currentState?.isFront ?? false) {
-                _flipCardKeys[currentIndex].currentState?.toggleCard();
-              } else {
-                _flipCardKeys[currentIndex].currentState?.toggleCard();
-              }
+              _flipCardKeys[currentIndex].currentState?.toggleCard();
             },
           ),
           IconButton(

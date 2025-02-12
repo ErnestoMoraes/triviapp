@@ -1,62 +1,62 @@
-// import 'package:estudo/auth/auth.dart';
-// import 'package:estudo/login/home.dart';
-// import 'package:estudo/login/register.dart';
-// import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:estudo/auth/auth.dart';
+import 'package:estudo/screens/home_screen.dart';
 
-// class LoginScreen extends StatefulWidget {
-//   @override
-//   _LoginScreenState createState() => _LoginScreenState();
-// }
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
 
-// class _LoginScreenState extends State<LoginScreen> {
-//   final TextEditingController _emailController = TextEditingController();
-//   final TextEditingController _passwordController = TextEditingController();
-//   final AuthService _authService = AuthService();
+  @override
+  LoginScreenState createState() => LoginScreenState();
+}
 
-//   void _login() async {
-//     final user = await _authService.signInWithEmailAndPassword(
-//       _emailController.text,
-//       _passwordController.text,
-//     );
+class LoginScreenState extends State<LoginScreen> {
+  final AuthService _authService = AuthService();
 
-//     if (user != null) {
-//       Navigator.pushReplacement(
-//         context,
-//         MaterialPageRoute(builder: (context) => HomeScreen()),
-//       );
-//     } else {
-//       ScaffoldMessenger.of(context).showSnackBar(
-//         SnackBar(content: Text('Erro ao fazer login!')),
-//       );
-//     }
-//   }
+  // Método de login com Google
+  void _loginWithGoogle() async {
+    final user = await _authService.signGoogleAuth();
+    if (user != null) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Erro ao fazer login com Google!')),
+      );
+    }
+  }
 
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(title: Text("Login")),
-//       body: Padding(
-//         padding: const EdgeInsets.all(16.0),
-//         child: Column(
-//           mainAxisAlignment: MainAxisAlignment.center,
-//           children: [
-//             TextField(
-//                 controller: _emailController,
-//                 decoration: InputDecoration(labelText: "Email")),
-//             TextField(
-//                 controller: _passwordController,
-//                 decoration: InputDecoration(labelText: "Senha"),
-//                 obscureText: true),
-//             SizedBox(height: 20),
-//             ElevatedButton(onPressed: _login, child: Text("Login")),
-//             TextButton(
-//               onPressed: () => Navigator.push(context,
-//                   MaterialPageRoute(builder: (context) => RegisterScreen())),
-//               child: Text("Não tem conta? Cadastre-se"),
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-// }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(title: const Text("Login e Cadastro")),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              "Estou logado: ${_authService.currentUser == null ? 'não' : 'sim'}",
+              style: TextStyle(color: Colors.white),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {});
+              },
+              child: const Text("Atualizar"),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _loginWithGoogle,
+              child: const Text("Login com Google"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

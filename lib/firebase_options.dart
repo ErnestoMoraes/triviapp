@@ -59,4 +59,5 @@ class DefaultFirebaseOptions {
     projectId: 'triviapp-1a9d5',
     storageBucket: 'triviapp-1a9d5.firebasestorage.app',
   );
+
 }
