@@ -5,7 +5,9 @@ void showFeedbackMessage(
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text(
-        isCorrect ? "Correto!" : "Errado! Resposta correta: $correctAnswer",
+        isCorrect
+            ? "Correto!"
+            : "Errou Otário!\nResposta correta: $correctAnswer",
         style: const TextStyle(color: Colors.white),
       ),
       backgroundColor: isCorrect ? Colors.green : Colors.red,

@@ -2,6 +2,8 @@ import 'dart:developer';
 
 import 'package:estudo/models/trivia_question.dart';
 import 'package:estudo/screens/home_screen.dart';
+import 'package:estudo/services/auth.dart';
+import 'package:estudo/services/multiplayer.dart';
 import 'package:estudo/utils/snackbar.dart';
 import 'package:estudo/widgets/banner.dart';
 import 'package:flutter/material.dart';
@@ -11,8 +13,15 @@ import 'dart:async';
 
 class TriviaScreen extends StatefulWidget {
   final bool isTimer;
+  final bool playerOnline;
+  final String roomId;
 
-  const TriviaScreen({super.key, required this.isTimer});
+  const TriviaScreen({
+    super.key,
+    required this.isTimer,
+    this.playerOnline = false,
+    this.roomId = '',
+  });
 
   @override
   TriviaScreenState createState() => TriviaScreenState();
@@ -28,13 +37,12 @@ class TriviaScreenState extends State<TriviaScreen>
   late AnimationController _animationController;
   int _secondsLeft = 10;
   late DateTime _startTime;
+  final MultiplayerService _multiplayerService = MultiplayerService();
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
     super.initState();
-
-    fetchQuestions();
-
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 10),
@@ -45,28 +53,50 @@ class TriviaScreenState extends State<TriviaScreen>
           }
         });
       });
+
+    // Busca as perguntas (do Firestore ou da API)
+    fetchQuestions();
   }
 
   Future<void> fetchQuestions() async {
     try {
-      var response =
-          await Dio().get('https://the-trivia-api.com/v2/questions/');
-      setState(() {
-        questions = (response.data as List)
+      if (widget.playerOnline) {
+        // No modo multiplayer, carrega as perguntas do Firestore
+        final roomQuestions =
+            await _multiplayerService.getRoomQuestions(widget.roomId);
+        if (roomQuestions.isEmpty) {
+          throw Exception("Nenhuma pergunta encontrada na sala.");
+        }
+        setState(() {
+          questions = roomQuestions;
+        });
+      } else {
+        // No modo single-player, busca as perguntas da API
+        var response =
+            await Dio().get('https://the-trivia-api.com/v2/questions/');
+        List<TriviaQuestion> questions = (response.data as List)
             .map((q) => TriviaQuestion.fromJson(q))
             .toList();
+        setState(() {
+          this.questions = questions;
+        });
+      }
 
-        _flipCardKeys =
-            List.generate(questions.length, (_) => GlobalKey<FlipCardState>());
-
-        _startTime = DateTime.now();
-
-        if (widget.isTimer) {
-          startTimer();
-        }
-      });
+      // Inicializa o jogo
+      _flipCardKeys =
+          List.generate(questions.length, (_) => GlobalKey<FlipCardState>());
+      _startTime = DateTime.now();
+      if (widget.isTimer) {
+        startTimer();
+      }
     } catch (e) {
       log("Erro ao buscar perguntas: $e");
+      // Exibe uma mensagem de erro para o usuário
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Erro ao carregar as perguntas: $e"),
+        ),
+      );
     }
   }
 
@@ -77,10 +107,7 @@ class TriviaScreenState extends State<TriviaScreen>
   }
 
   void checkAnswer(
-    String selected,
-    String correct,
-    BuildContext context,
-  ) async {
+      String selected, String correct, BuildContext context) async {
     bool isCorrect = selected == correct;
 
     showFeedbackMessage(isCorrect, correct, context);
@@ -89,6 +116,10 @@ class TriviaScreenState extends State<TriviaScreen>
       setState(() {
         score++;
       });
+      if (widget.playerOnline) {
+        await _multiplayerService.updateScore(
+            widget.roomId, _authService.currentUser!.uid, score);
+      }
     }
 
     if (widget.isTimer) {
