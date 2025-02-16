@@ -49,12 +49,29 @@ class MultiplayerService {
 
   // Atualizar pontuação do jogador
   Future<void> updateScore(String roomId, String userId, int score) async {
-    await _firestore
-        .collection('rooms')
-        .doc(roomId)
-        .collection('competitors')
-        .doc(userId)
-        .update({'score': score});
+    final roomRef = _firestore.collection('rooms').doc(roomId);
+
+    await _firestore.runTransaction((transaction) async {
+      final roomSnapshot = await transaction.get(roomRef);
+
+      if (!roomSnapshot.exists) {
+        log("Documento da sala não encontrado.");
+        throw Exception("Documento da sala não encontrado.");
+      }
+
+      final competitors =
+          roomSnapshot.get('competitors') as Map<String, dynamic>? ?? {};
+
+      if (competitors.containsKey(userId)) {
+        competitors[userId]['score'] = score;
+
+        transaction.update(roomRef, {'competitors': competitors});
+        log("Score atualizado para $score.");
+      } else {
+        log("Competidor não encontrado no mapa de competidores.");
+        throw Exception("Competidor não encontrado.");
+      }
+    });
   }
 
   // Obter stream de atualizações da sala

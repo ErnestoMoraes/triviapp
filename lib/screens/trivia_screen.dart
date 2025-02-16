@@ -118,7 +118,10 @@ class TriviaScreenState extends State<TriviaScreen>
       });
       if (widget.playerOnline) {
         await _multiplayerService.updateScore(
-            widget.roomId, _authService.currentUser!.uid, score);
+          widget.roomId,
+          _authService.currentUser!.uid,
+          score,
+        );
       }
     }
 
@@ -167,11 +170,14 @@ class TriviaScreenState extends State<TriviaScreen>
           style: const TextStyle(fontSize: 18),
         ),
         actions: [
-          TextButton(
-            onPressed: restartGame,
-            child: const Text(
-              "Jogar novamente",
-              style: TextStyle(color: Colors.blue),
+          Visibility(
+            visible: !widget.playerOnline,
+            child: TextButton(
+              onPressed: restartGame,
+              child: const Text(
+                "Jogar novamente",
+                style: TextStyle(color: Colors.blue),
+              ),
             ),
           ),
           TextButton(
