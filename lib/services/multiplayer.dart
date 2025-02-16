@@ -78,4 +78,15 @@ class MultiplayerService {
   Stream<DocumentSnapshot> getRoomUpdates(String roomId) {
     return _firestore.collection('rooms').doc(roomId).snapshots();
   }
+
+  // Update the status of the competitor
+  Future<void> updateCompetitorStatus(
+    String roomId,
+    String userId,
+    String status,
+  ) async {
+    await _firestore.collection('rooms').doc(roomId).update({
+      'competitors.$userId.status': status,
+    });
+  }
 }

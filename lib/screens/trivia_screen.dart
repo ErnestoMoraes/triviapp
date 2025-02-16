@@ -3,7 +3,9 @@ import 'dart:developer';
 import 'package:estudo/models/trivia_question.dart';
 import 'package:estudo/screens/home_screen.dart';
 import 'package:estudo/services/auth.dart';
+import 'package:estudo/services/competitor.dart';
 import 'package:estudo/services/multiplayer.dart';
+import 'package:estudo/services/room.dart';
 import 'package:estudo/utils/snackbar.dart';
 import 'package:estudo/widgets/banner.dart';
 import 'package:flutter/material.dart';
@@ -31,6 +33,8 @@ class TriviaScreenState extends State<TriviaScreen>
     with TickerProviderStateMixin {
   int _currentQuestionIndex = 0;
   List<TriviaQuestion> questions = [];
+  final RoomService _roomService = RoomService();
+
   int score = 0;
   final PageController _pageController = PageController();
   List<GlobalKey<FlipCardState>> _flipCardKeys = [];
@@ -54,14 +58,116 @@ class TriviaScreenState extends State<TriviaScreen>
         });
       });
 
-    // Busca as perguntas (do Firestore ou da API)
     fetchQuestions();
+    _listenAllCompetitorsFinished();
+  }
+
+  void _listenAllCompetitorsFinished() {
+    _roomService.getRoomStream(widget.roomId).listen((snapshot) async {
+      if (snapshot.exists) {
+        final roomData = snapshot.data() as Map<String, dynamic>;
+
+        if (roomData['competitors'] != null) {
+          final competitors = (roomData['competitors'] as Map<String, dynamic>)
+              .values
+              .map((competitor) => CompetitorModel.fromMap(competitor))
+              .toList();
+
+          // Verifica se todos os competidores terminaram
+          if (competitors.every((c) => c.status == 'finished')) {
+            // Atualiza o status da sala para 'finished'
+            await _roomService.updateRoomStatus(widget.roomId, 'finished');
+
+            // Ordena os competidores por pontuação (do maior para o menor)
+            competitors.sort((a, b) => b.score.compareTo(a.score));
+
+            // Exibe o popup com o ranking
+            if (mounted) {
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => AlertDialog(
+                  title: const Text(
+                    "Ranking da Sala",
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurpleAccent,
+                    ),
+                  ),
+                  content: SizedBox(
+                    width: double.maxFinite,
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: competitors.length,
+                      itemBuilder: (context, index) {
+                        final competitor = competitors[index];
+                        return ListTile(
+                          leading: CircleAvatar(
+                            radius: 20,
+                            backgroundImage: competitor.photoUrl.isNotEmpty
+                                ? NetworkImage(competitor.photoUrl)
+                                : null,
+                            child: competitor.photoUrl.isEmpty
+                                ? const Icon(Icons.person,
+                                    size: 20, color: Colors.white)
+                                : null,
+                          ),
+                          title: Text(
+                            competitor.name,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          trailing: Text(
+                            "Pontos: ${competitor.score}",
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop(); // Fecha o popup
+                        exitGame(); // Sai do jogo
+                      },
+                      child: const Text(
+                        "Sair",
+                        style: TextStyle(color: Colors.deepPurpleAccent),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+          } else {
+            // Mostra SnackBar para competidores individuais que terminaram
+            for (final competitor in competitors) {
+              if (competitor.status == 'finished') {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("${competitor.name} terminou."),
+                    ),
+                  );
+                }
+              }
+            }
+          }
+        }
+      }
+    });
   }
 
   Future<void> fetchQuestions() async {
     try {
       if (widget.playerOnline) {
-        // No modo multiplayer, carrega as perguntas do Firestore
         final roomQuestions =
             await _multiplayerService.getRoomQuestions(widget.roomId);
         if (roomQuestions.isEmpty) {
@@ -71,7 +177,6 @@ class TriviaScreenState extends State<TriviaScreen>
           questions = roomQuestions;
         });
       } else {
-        // No modo single-player, busca as perguntas da API
         var response =
             await Dio().get('https://the-trivia-api.com/v2/questions/');
         List<TriviaQuestion> questions = (response.data as List)
@@ -134,8 +239,14 @@ class TriviaScreenState extends State<TriviaScreen>
     moveToNextQuestion();
   }
 
-  void moveToNextQuestion() {
+  void moveToNextQuestion() async {
     if (_pageController.page?.round() == questions.length - 1) {
+      await _multiplayerService.updateCompetitorStatus(
+        widget.roomId,
+        _authService.currentUser!.uid,
+        'finished',
+      );
+
       showGameOverDialog();
     } else {
       setState(() {

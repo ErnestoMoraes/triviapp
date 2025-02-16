@@ -81,4 +81,11 @@ class RoomService {
   Stream<DocumentSnapshot> getRoomStream(String roomId) {
     return _firestore.collection('rooms').doc(roomId).snapshots();
   }
+
+  // updateRoomStatus
+  Future<void> updateRoomStatus(String roomId, String status) async {
+    await _firestore.collection('rooms').doc(roomId).update({
+      'status': status,
+    });
+  }
 }
