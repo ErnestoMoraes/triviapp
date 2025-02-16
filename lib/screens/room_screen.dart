@@ -126,11 +126,13 @@ class _RoomScreenState extends State<RoomScreen> {
   void _createRoom(BuildContext context) async {
     String userId = _authService.currentUser!.uid;
     String userName = _authService.currentUser!.displayName ?? "Anonymous";
-    String roomId = await _roomService.createRoom(userId, userName);
+    String photoUrl = _authService.currentUser!.photoURL ?? "";
+    String roomId =
+        await _roomService.createRoom(userId, userName, photoUrl, 'playing');
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => WaitingRoomScreen(roomId: roomId),
+        builder: (context) => WaitingRoomScreen(roomId: roomId, userId: userId),
       ),
     );
   }
@@ -140,12 +142,15 @@ class _RoomScreenState extends State<RoomScreen> {
     if (roomId.isNotEmpty) {
       String userId = _authService.currentUser!.uid;
       String userName = _authService.currentUser!.displayName ?? "Anonymous";
-      bool success = await _roomService.joinRoom(roomId, userId, userName);
+      String photoUrl = _authService.currentUser!.photoURL ?? "";
+      bool success = await _roomService.joinRoom(
+          roomId, userId, userName, photoUrl, 'playing');
       if (success) {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => WaitingRoomScreen(roomId: roomId),
+            builder: (context) =>
+                WaitingRoomScreen(roomId: roomId, userId: userId),
           ),
         );
       } else {

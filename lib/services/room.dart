@@ -7,20 +7,22 @@ import 'package:estudo/models/trivia_question.dart';
 class RoomService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  Future<String> createRoom(String userId, String userName) async {
+  Future<String> createRoom(
+    String userId,
+    String userName,
+    String photoUrl,
+    String stauts,
+  ) async {
     try {
-      // Busca as perguntas da API
       var response =
           await Dio().get('https://the-trivia-api.com/v2/questions/');
       List<TriviaQuestion> questions = (response.data as List)
           .map((q) => TriviaQuestion.fromJson(q))
           .toList();
 
-      // Converte as perguntas para um formato salvável no Firestore
       List<Map<String, dynamic>> questionsData =
           questions.map((q) => q.toJson()).toList();
 
-      // Cria a sala com as perguntas
       String roomId = _firestore.collection('rooms').doc().id;
       await _firestore.collection('rooms').doc(roomId).set({
         'status': 'waiting',
@@ -28,10 +30,11 @@ class RoomService {
           userId: {
             'name': userName,
             'score': 0,
+            'photoUrl': photoUrl,
+            'status': stauts,
           }
         },
-        'questions':
-            questionsData, // Certifique-se de que este campo é uma lista
+        'questions': questionsData,
       });
 
       return roomId;
@@ -41,13 +44,33 @@ class RoomService {
     }
   }
 
-  Future<bool> joinRoom(String roomId, String userId, String userName) async {
+  Future<void> startGame(String roomId, String userId) async {
+    final doc = await _firestore.collection('rooms').doc(roomId).get();
+    if (doc.exists) {
+      final data = doc.data() as Map<String, dynamic>;
+      if (data['competitors'].keys.first == userId) {
+        await _firestore.collection('rooms').doc(roomId).update({
+          'status': 'gameing',
+        });
+      }
+    }
+  }
+
+  Future<bool> joinRoom(
+    String roomId,
+    String userId,
+    String userName,
+    String photoUrl,
+    String status,
+  ) async {
     final doc = await _firestore.collection('rooms').doc(roomId).get();
     if (doc.exists) {
       await _firestore.collection('rooms').doc(roomId).update({
         'competitors.$userId': {
           'name': userName,
           'score': 0,
+          'photoUrl': photoUrl,
+          'status': status,
         }
       });
       return true;
