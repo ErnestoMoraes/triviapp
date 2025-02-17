@@ -61,25 +61,31 @@ class TriviaScreenState extends State<TriviaScreen>
   }
 
   void _listenAllCompetitorsFinished() {
-    _roomService.getRoomStream(widget.roomId).listen((snapshot) async {
-      if (snapshot.exists) {
-        final roomData = snapshot.data() as Map<String, dynamic>;
+    if (widget.roomId.isNotEmpty) {
+      _roomService.getRoomStream(widget.roomId).listen((snapshot) async {
+        if (snapshot.exists) {
+          final roomData = snapshot.data() as Map<String, dynamic>;
 
-        if (roomData['competitors'] != null) {
-          final competitors = (roomData['competitors'] as Map<String, dynamic>)
-              .values
-              .map((competitor) =>
-                  CompetitorModel.fromMap(competitor as Map<String, dynamic>))
-              .toList();
+          if (roomData['competitors'] != null) {
+            final competitors = (roomData['competitors']
+                    as Map<String, dynamic>)
+                .values
+                .map((competitor) =>
+                    CompetitorModel.fromMap(competitor as Map<String, dynamic>))
+                .toList();
 
-          if (competitors.every((c) => c.status == 'finished')) {
-            await _roomService.updateRoomStatus(widget.roomId, 'finished');
-            competitors.sort((a, b) => b.score.compareTo(a.score));
-            _showRankingDialog(competitors);
+            if (competitors.every((c) => c.status == 'finished')) {
+              await _roomService.updateRoomStatus(widget.roomId, 'finished');
+              competitors.sort((a, b) => b.score.compareTo(a.score));
+              _showRankingDialog(competitors);
+            }
           }
         }
-      }
-    });
+      });
+    } else {
+      // Handle the case where roomId is empty
+      print('Room ID is empty!');
+    }
   }
 
   void _showRankingDialog(List<CompetitorModel> competitors) {

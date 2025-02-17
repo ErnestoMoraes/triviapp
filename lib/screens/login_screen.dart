@@ -96,10 +96,10 @@ class LoginScreenState extends State<LoginScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SvgPicture.asset(
-                      'assets/google-icon.svg', // Ícone do Google
-                      height: 24,
-                    ),
+                    // SvgPicture.asset(
+                    //   'assets/google-icon.svg', // Ícone do Google
+                    //   height: 24,
+                    // ),
                     const SizedBox(width: 10),
                     Text(
                       "Login com Google",
