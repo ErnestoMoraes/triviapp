@@ -16,6 +16,35 @@ class MultiplayerService {
     });
   }
 
+  // Metodo para verificar se é o ultimo jogador a terminar a rodada
+  Future<bool> isLastPlayer(String roomId, String userId) async {
+    final doc = await _firestore.collection('rooms').doc(roomId).get();
+    if (doc.exists) {
+      final data = doc.data() as Map<String, dynamic>;
+      final competitors = data['competitors'] as Map<String, dynamic>? ?? {};
+      final competitorStatus = competitors[userId]['status'];
+      final competitorKeys = competitors.keys.toList();
+      final lastPlayer = competitorKeys.last;
+      return competitorStatus == 'finished' && userId == lastPlayer;
+    } else {
+      log("Documento da sala não encontrado.");
+      return false;
+    }
+  }
+
+  // Método para obter a lista de competidores
+  Future<List<String>> getCompetitors(String roomId) async {
+    final doc = await _firestore.collection('rooms').doc(roomId).get();
+    if (doc.exists) {
+      final data = doc.data() as Map<String, dynamic>;
+      final competitors = data['competitors'] as Map<String, dynamic>? ?? {};
+      return competitors.keys.toList();
+    } else {
+      log("Documento da sala não encontrado.");
+      return [];
+    }
+  }
+
   // Obter perguntas da sala
   Future<List<TriviaQuestion>> getRoomQuestions(String roomId) async {
     final snapshot = await _firestore.collection('rooms').doc(roomId).get();

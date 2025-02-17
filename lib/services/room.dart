@@ -56,6 +56,15 @@ class RoomService {
     }
   }
 
+  Future<bool> isCreatorRoom(String roomId, String userId) async {
+    final doc = await _firestore.collection('rooms').doc(roomId).get();
+    if (doc.exists) {
+      final data = doc.data() as Map<String, dynamic>;
+      return data['competitors'].keys.first == userId;
+    }
+    return false;
+  }
+
   Future<bool> joinRoom(
     String roomId,
     String userId,

@@ -23,11 +23,21 @@ class WaitingRoomScreenState extends State<WaitingRoomScreen> {
   final RoomService _roomService = RoomService();
   List<CompetitorModel> competitors = [];
   final int maxCompetitors = 4;
+  bool _isCreator = false;
 
   @override
   void initState() {
     super.initState();
     _listenForRoomUpdates();
+    _checkIfCreator();
+  }
+
+  void _checkIfCreator() async {
+    bool isCreator =
+        await _roomService.isCreatorRoom(widget.roomId, widget.userId);
+    setState(() {
+      _isCreator = isCreator;
+    });
   }
 
   void _listenForRoomUpdates() {
@@ -88,37 +98,47 @@ class WaitingRoomScreenState extends State<WaitingRoomScreen> {
                     const SizedBox(height: 40),
                     _buildCompetitorsSection(constraints),
                     const SizedBox(height: 40),
-                    ElevatedButton(
-                      onPressed: () async {
-                        if (competitors.length >= 2) {
-                          await _roomService.startGame(
-                              widget.roomId, widget.userId);
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                  "A sala precisa de pelo menos 2 jogadores para começar."),
-                              backgroundColor: Colors.red,
+                    _isCreator
+                        ? ElevatedButton(
+                            onPressed: () async {
+                              if (competitors.length >= 2) {
+                                await _roomService.startGame(
+                                    widget.roomId, widget.userId);
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        "A sala precisa de pelo menos 2 jogadores para começar."),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        'Iniciar Jogo',
-                        style: GoogleFonts.roboto(
-                          fontSize: 18,
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                            child: Text(
+                              'Iniciar Jogo',
+                              style: GoogleFonts.roboto(
+                                fontSize: 18,
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          )
+                        : Text(
+                            "Aguardando o criador da sala iniciar o jogo \nou\n Aguarde mais jogadores para começar o jogo",
+                            style: GoogleFonts.roboto(
+                              fontSize: 18,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                   ],
                 ),
               ),

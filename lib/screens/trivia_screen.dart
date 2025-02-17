@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:estudo/models/trivia_question.dart';
 import 'package:estudo/screens/home_screen.dart';
 import 'package:estudo/services/auth.dart';
@@ -70,99 +68,78 @@ class TriviaScreenState extends State<TriviaScreen>
         if (roomData['competitors'] != null) {
           final competitors = (roomData['competitors'] as Map<String, dynamic>)
               .values
-              .map((competitor) => CompetitorModel.fromMap(competitor))
+              .map((competitor) =>
+                  CompetitorModel.fromMap(competitor as Map<String, dynamic>))
               .toList();
 
-          // Verifica se todos os competidores terminaram
           if (competitors.every((c) => c.status == 'finished')) {
-            // Atualiza o status da sala para 'finished'
             await _roomService.updateRoomStatus(widget.roomId, 'finished');
-
-            // Ordena os competidores por pontuação (do maior para o menor)
             competitors.sort((a, b) => b.score.compareTo(a.score));
-
-            // Exibe o popup com o ranking
-            if (mounted) {
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) => AlertDialog(
-                  title: const Text(
-                    "Ranking da Sala",
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepPurpleAccent,
-                    ),
-                  ),
-                  content: SizedBox(
-                    width: double.maxFinite,
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: competitors.length,
-                      itemBuilder: (context, index) {
-                        final competitor = competitors[index];
-                        return ListTile(
-                          leading: CircleAvatar(
-                            radius: 20,
-                            backgroundImage: competitor.photoUrl.isNotEmpty
-                                ? NetworkImage(competitor.photoUrl)
-                                : null,
-                            child: competitor.photoUrl.isEmpty
-                                ? const Icon(Icons.person,
-                                    size: 20, color: Colors.white)
-                                : null,
-                          ),
-                          title: Text(
-                            competitor.name,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          trailing: Text(
-                            "Pontos: ${competitor.score}",
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop(); // Fecha o popup
-                        exitGame(); // Sai do jogo
-                      },
-                      child: const Text(
-                        "Sair",
-                        style: TextStyle(color: Colors.deepPurpleAccent),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-          } else {
-            // Mostra SnackBar para competidores individuais que terminaram
-            for (final competitor in competitors) {
-              if (competitor.status == 'finished') {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text("${competitor.name} terminou."),
-                    ),
-                  );
-                }
-              }
-            }
+            _showRankingDialog(competitors);
           }
         }
       }
     });
+  }
+
+  void _showRankingDialog(List<CompetitorModel> competitors) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text(
+          "Ranking da Sala",
+          style: TextStyle(
+              fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: competitors.length,
+            itemBuilder: (context, index) {
+              final competitor = competitors[index];
+              final nameParts = competitor.name.split(' ');
+              final displayName = nameParts.length > 1
+                  ? '${nameParts.first} ${nameParts.last}'
+                  : competitor.name;
+
+              return ListTile(
+                leading: CircleAvatar(
+                  radius: 22,
+                  backgroundImage: competitor.photoUrl.isNotEmpty
+                      ? NetworkImage(competitor.photoUrl)
+                      : null,
+                  child: competitor.photoUrl.isEmpty
+                      ? const Icon(Icons.person, size: 24, color: Colors.white)
+                      : null,
+                ),
+                title: Text(
+                  displayName,
+                  style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
+                ),
+                trailing: Text(
+                  "${competitor.score} pts",
+                  style:
+                      const TextStyle(fontSize: 16, color: Colors.greenAccent),
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: exitGame,
+            child: const Text("Voltar para Home",
+                style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> fetchQuestions() async {
@@ -187,16 +164,17 @@ class TriviaScreenState extends State<TriviaScreen>
         });
       }
 
-      // Inicializa o jogo
-      _flipCardKeys =
-          List.generate(questions.length, (_) => GlobalKey<FlipCardState>());
+      _flipCardKeys = List.generate(
+        questions.length,
+        (_) => GlobalKey<FlipCardState>(),
+      );
+
       _startTime = DateTime.now();
+
       if (widget.isTimer) {
         startTimer();
       }
     } catch (e) {
-      log("Erro ao buscar perguntas: $e");
-      // Exibe uma mensagem de erro para o usuário
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Erro ao carregar as perguntas: $e"),
@@ -247,7 +225,70 @@ class TriviaScreenState extends State<TriviaScreen>
         'finished',
       );
 
-      showGameOverDialog();
+      final isLastPlayer = await _multiplayerService.isLastPlayer(
+        widget.roomId,
+        _authService.currentUser!.uid,
+      );
+
+      if (isLastPlayer) {
+        await _roomService.updateRoomStatus(widget.roomId, 'finished');
+        final competitors =
+            (await _multiplayerService.getCompetitors(widget.roomId))
+                .map((competitor) =>
+                    CompetitorModel.fromMap(competitor as Map<String, dynamic>))
+                .toList();
+        competitors.sort((a, b) => b.score.compareTo(a.score));
+        _showRankingDialog(competitors);
+      } else {
+        _animationController.stop();
+        _animationController.reset();
+        _secondsLeft = 10;
+
+        // Exibir mensagem de aguardando na tela
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            backgroundColor: Colors.grey[900],
+            title: const Text(
+              "Aguardando os outros jogadores...",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            content: const SizedBox(
+              height: 80,
+              width: 80,
+              child: Center(
+                  child: CircularProgressIndicator(
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(Colors.deepPurple))),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const HomeScreen(),
+                    ),
+                    (route) => false,
+                  );
+                },
+                child: const Text(
+                  "Sair da Sala",
+                  style: TextStyle(
+                    color: Colors.redAccent,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
     } else {
       setState(() {
         _currentQuestionIndex++;
